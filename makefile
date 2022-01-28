@@ -1,5 +1,5 @@
 all: a.out
-FLAGS=-std=c++2a -Wall -Wextra -fsanitize=address -fsanitize=undefined
+FLAGS=-std=c++2a -O3 -Wall -Wextra -fsanitize=address -fsanitize=undefined
 
 a.out: main.cpp matrix.h makefile
 	g++-11 $(FLAGS) main.cpp

@@ -17,6 +17,15 @@ bool is_equal(matrix<T,r,c> a,matrix<T,r,c> b,T &absdiff){
 	return absdiff<1e-5;
 }
 
+template<typename T,int n>
+bool is_equal(vec<T,n> a,vec<T,n> b,T &absdiff){
+	absdiff=0;
+	for(int i=0;i<n;i++){ 
+		absdiff+=abs(a[i]-b[i]);	
+	}
+	return absdiff<1e-5;
+}
+
 template<typename T,int r,int c>
 matrix<T,r,c> rand_mat(){
 	matrix<T,r,c> m;
@@ -272,16 +281,32 @@ void concept_test(){
 	auto v3=vec<long,1>();
 	auto v4=vec<unsigned int,1>();
 	auto v5=vec<unsigned long,1>();
-	//auto v6=vec<complex<float>,1>();
-
+	auto v6=vec<complex<float>,1>();
 	(void)v0;
 	(void)v1;
 	(void)v2;
 	(void)v3;
 	(void)v4;
 	(void)v5;
+	(void)v6;
+}
 
-
+#define PI 3.141592653589793
+void vec_op_test(){
+	assert(dot(float2(1,-1),float2(4,5))==-1);
+	assert(cross(float3(1,0,0),float3(0,1,0))==+float3(0,0,1));
+	assert(cross(float3(0,1,0),float3(1,0,0))==-float3(0,0,1));
+	assert(length(normalize(float4(1,-2,3,-7)))==1);
+	assert(mv(translate(float2(4,3)),float2(3,4),true)==float2(7,7));
+	float absdiff;
+	assert(is_equal(
+		rotate<float,2>(PI/2,0)*float2(1,0),
+		float2(0,1),
+		absdiff));
+	assert(is_equal(
+		rotate<float,3>(PI/2,0b100)*float3(1,0,33),
+		float3(0,1,33),
+		absdiff));
 }
 
 
@@ -327,6 +352,7 @@ int main(){
 	puts("");
 	mat_vec_test();
 	concept_test();
+	vec_op_test();
 
 }
 

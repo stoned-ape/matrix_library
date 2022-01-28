@@ -1,38 +1,53 @@
 #pragma once
 #include <iostream>
+using std::cout,std::ostream;
 #include <assert.h>
 #include <string.h>
-using std::cout,std::ostream;
+#include <math.h>
 #include <concepts>
 using std::floating_point,std::same_as,std::integral;
+#include <bit>
+using std::popcount;
 
 template<typename T>
-concept numeric=floating_point<T> || integral<T>;
+concept numeric=requires(T a,T b){
+	{a+b}->auto;
+	{a-b}->auto;
+	{a*b}->auto;
+	{a/b}->auto;
+	{-a}->auto;
+	{a==b}->auto;
+	{a+=b}->auto;
+	{a-=b}->auto;
+	{a*=b}->auto;
+	{a/=b}->auto;
+	{a=b}->auto;
+};
 
 template<numeric T,int n>
 struct vec{
 	static_assert(n>0);
 	T data[n];
-	vec(){for(int i=0;i<n;i++) data[i]=0;}
-	vec(T x){for(int i=0;i<n;i++) data[i]=x;}
-	vec(T x,T y){
+	constexpr vec(){for(int i=0;i<n;i++) data[i]=0;}
+	constexpr vec(T x){for(int i=0;i<n;i++) data[i]=x;}
+	constexpr vec(T x,T y){
 		static_assert(n==2);
 		data[0]=x,data[1]=y;
 	}
-	vec(T x,T y,T z){
+	constexpr vec(T x,T y,T z){
 		static_assert(n==3);
 		data[0]=x,data[1]=y,data[2]=z;
 	}
-	vec(T x,T y,T z,T w){
+	constexpr vec(T x,T y,T z,T w){
 		static_assert(n==4);
 		data[0]=x,data[1]=y,data[2]=z,data[3]=w;
 	}
-	T &operator[](int i){return data[i];}
+	constexpr T &operator[](int i){return data[i];}
 };
 
 #define ELEMENTWISE(op,mod_op,ref)								\
 template<typename T,int n>										\
-vec<T,n> operator op(vec<T,n> ref a,vec<T,n> b){				\
+constexpr vec<T,n> operator op(vec<T,n> ref a,vec<T,n> b){		\
 	for(int i=0;i<n;i++){										\
 		a[i] mod_op b[i];										\
 	}															\
@@ -50,7 +65,7 @@ ELEMENTWISE(-=,-=,&);
 
 #define SCALAR_ELEMENTWISE(op,mod_op,ref)			\
 template<typename T,int n>							\
-vec<T,n> operator op(vec<T,n> ref a,T x){			\
+constexpr vec<T,n> operator op(vec<T,n> ref a,T x){	\
 	for(int i=0;i<n;i++){							\
 		a[i] mod_op x;								\
 	}												\
@@ -70,7 +85,7 @@ SCALAR_ELEMENTWISE(/=,/=,&);
 //for scalar first, vector second
 #define SCALAR_ELEMENTWISE(op)						\
 template<typename T,int n>							\
-vec<T,n> operator op(T x,vec<T,n> a){				\
+constexpr vec<T,n> operator op(T x,vec<T,n> a){		\
 	for(int i=0;i<n;i++){							\
 		a[i]=x op a[i];								\
 	}												\
@@ -86,35 +101,35 @@ SCALAR_ELEMENTWISE(/);
 #undef SCALAR_ELEMENTWISE
 
 template<typename T,int n>
-T dot(vec<T,n> a,vec<T,n> b){
+constexpr T dot(vec<T,n> a,vec<T,n> b){
 	T x=0;
 	for(int i=0;i<n;i++) x+=a[i]*b[i];
 	return x;
 }
 
 template<typename T>
-vec<T,3> cross(vec<T,3> a,vec<T,3> b){
+constexpr vec<T,3> cross(vec<T,3> a,vec<T,3> b){
 	vec<T,3> c;
 	for(int i=0;i<3;i++){
 		c[i]+=a[(i+1)%3]*b[(i+2)%3];
-		c[i]-=a[(i-1)%3]*b[(i-2)%3];
+		c[i]-=a[(i-1+3)%3]*b[(i-2+3)%3];
 	}
 	return c;
 }
 
 template<floating_point T,int n>
-T length(vec<T,n> a){
+constexpr T length(vec<T,n> a){
 	if constexpr (same_as<T,float>) return sqrtf(dot(a,a));
 	else return sqrt(dot(a,a));
 }
 
 template<floating_point T,int n>
-vec<T,n> normalize(vec<T,n> a){
+constexpr vec<T,n> normalize(vec<T,n> a){
 	return a/length(a);
 }
 
 template<typename T,int n> 
-bool operator==(vec<T,n> x,vec<T,n> y){
+constexpr bool operator==(vec<T,n> x,vec<T,n> y){
 	for(int i=0;i<n;i++){ 
 		if(x[i]!=y[i]) return false;
 	}
@@ -122,7 +137,7 @@ bool operator==(vec<T,n> x,vec<T,n> y){
 }
 
 template<typename T,int n>
-ostream &operator<<(ostream &os,vec<T,n> v){
+constexpr ostream &operator<<(ostream &os,vec<T,n> v){
 	os<<"[";
 	for(int i=0;i<n;i++){
 		os<<v[i];
@@ -132,6 +147,22 @@ ostream &operator<<(ostream &os,vec<T,n> v){
 	return os;
 }
 
+template<typename T,int n>
+constexpr vec<T,n> operator-(vec<T,n> v){
+	return v*(T)-1;
+}
+
+template<typename T,int n>
+constexpr vec<T,n> operator+(vec<T,n> v){
+	return v;
+}
+
+
+//create nicer names for small vectors
+typedef vec<float,2> float2;
+typedef vec<float,3> float3;
+typedef vec<float,4> float4;
+
 
 
 
@@ -140,7 +171,7 @@ template<numeric T,int r,int c>
 struct matrix{
 	static_assert(r>0 && c>0);
 	T data[r][c];
-	matrix(){
+	constexpr matrix(){
 		if(r==c){
 			for(int i=0;i<r;i++){
 				for(int j=0;j<c;j++){
@@ -149,7 +180,7 @@ struct matrix{
 			}
 		}
 	}
-	matrix(T x){
+	constexpr matrix(T x){
 		static_assert(c==r);
 		for(int i=0;i<r;i++){
 			for(int j=0;j<c;j++){
@@ -157,7 +188,7 @@ struct matrix{
 			}
 		}
 	}
-	matrix(vec<T,r> v){
+	constexpr matrix(vec<T,r> v){
 		static_assert(c==r);
 		for(int i=0;i<r;i++){
 			for(int j=0;j<c;j++){
@@ -165,25 +196,25 @@ struct matrix{
 			}
 		}
 	}
-	matrix(vec<T,c> x,vec<T,c> y){
+	constexpr matrix(vec<T,c> x,vec<T,c> y){
 		static_assert(r==2);
 		memcpy(data[0],x.data,c*sizeof(T));
 		memcpy(data[1],y.data,c*sizeof(T));
 	}
-	matrix(vec<T,c> x,vec<T,c> y,vec<T,c> z){
+	constexpr matrix(vec<T,c> x,vec<T,c> y,vec<T,c> z){
 		static_assert(r==3);
 		memcpy(data[0],x.data,c*sizeof(T));
 		memcpy(data[1],y.data,c*sizeof(T));
 		memcpy(data[2],z.data,c*sizeof(T));
 	}
-	matrix(vec<T,c> x,vec<T,c> y,vec<T,c> z,vec<T,c> w){
+	constexpr matrix(vec<T,c> x,vec<T,c> y,vec<T,c> z,vec<T,c> w){
 		static_assert(r==4);
 		memcpy(data[0],x.data,c*sizeof(T));
 		memcpy(data[1],y.data,c*sizeof(T));
 		memcpy(data[2],z.data,c*sizeof(T));
 		memcpy(data[3],w.data,c*sizeof(T));
 	}
-	T *operator[](int i){
+	constexpr T *operator[](int i){
 		assert(i<r);
 		return data[i];
 	}
@@ -213,7 +244,7 @@ typedef matrix<float,4,4> float4x4;
 
 
 template<typename T,int r,int c>
-ostream &operator<<(ostream &os,matrix<T,r,c> m){
+constexpr ostream &operator<<(ostream &os,matrix<T,r,c> m){
 	os<<"[\n";
 	for(int i=0;i<r;i++){
 		os<<"\t[";
@@ -229,15 +260,15 @@ ostream &operator<<(ostream &os,matrix<T,r,c> m){
 	return os;
 }
 
-#define ELEMENTWISE(op,mod_op,ref)								\
-template<typename T,int r,int c>								\
-matrix<T,r,c> operator op(matrix<T,r,c> ref a,matrix<T,r,c> b){	\
-	for(int i=0;i<r;i++){										\
-		for(int j=0;j<c;j++){									\
-			a[i][j] mod_op b[i][j];								\
-		}														\
-	}															\
-	return a;													\
+#define ELEMENTWISE(op,mod_op,ref)											\
+template<typename T,int r,int c>											\
+constexpr matrix<T,r,c> operator op(matrix<T,r,c> ref a,matrix<T,r,c> b){	\
+	for(int i=0;i<r;i++){													\
+		for(int j=0;j<c;j++){												\
+			a[i][j] mod_op b[i][j];											\
+		}																	\
+	}																		\
+	return a;																\
 }
 
 //define element-wise operators
@@ -252,7 +283,7 @@ ELEMENTWISE(-=,-=,&);
 
 
 template<typename T,int r,int c> 
-matrix<T,r,r> operator*(matrix<T,r,c> x,matrix<T,c,r> y){ 
+constexpr matrix<T,r,r> operator*(matrix<T,r,c> x,matrix<T,c,r> y){ 
 	matrix<T,r,r> z;
 	for(int i=0;i<r;i++){ 
 		for(int j=0;j<r;j++){ 
@@ -266,12 +297,12 @@ matrix<T,r,r> operator*(matrix<T,r,c> x,matrix<T,c,r> y){
 }
 
 template<typename T,int n> 
-matrix<T,n,n> operator*=(matrix<T,n,n> &x,matrix<T,n,n> y){
+constexpr matrix<T,n,n> operator*=(matrix<T,n,n> &x,matrix<T,n,n> y){
 	return x=x*y;
 }
 
 template<typename T,int r,int c> 
-matrix<T,c,r> transpose(matrix<T,r,c> x){
+constexpr matrix<T,c,r> transpose(matrix<T,r,c> x){
 	matrix<T,c,r> t;
 	for(int i=0;i<r;i++){ 
 		for(int j=0;j<c;j++){ 
@@ -283,7 +314,7 @@ matrix<T,c,r> transpose(matrix<T,r,c> x){
 
 
 template<typename T,int n> 
-matrix<T,n,n> inverse(matrix<T,n,n> x){
+constexpr matrix<T,n,n> inverse(matrix<T,n,n> x){
 	//initialize data structure of 2 matrices side by side
 	//the first is x and the second is the identity matrix
 	T data_raw[n][2*n];
@@ -318,7 +349,7 @@ matrix<T,n,n> inverse(matrix<T,n,n> x){
             for(int k=0;k<2*n;k++) data[j][k]+=coef*data[i][k];
 		}
 	}
-	//make the first matrix the identity matrix
+	//make the first matrix the identity matrix 
 	for(int i=n-1;i>0;i--){
         if(data[i][i]==0){
             bool b=false;
@@ -358,17 +389,17 @@ matrix<T,n,n> inverse(matrix<T,n,n> x){
 }
 
 template<typename T,int n> 
-matrix<T,n,n> operator/(matrix<T,n,n> x,matrix<T,n,n> y){
+constexpr matrix<T,n,n> operator/(matrix<T,n,n> x,matrix<T,n,n> y){
 	return x*inverse(y);
 }
 
 template<typename T,int n> 
-matrix<T,n,n> operator/=(matrix<T,n,n> &x,matrix<T,n,n> y){
+constexpr matrix<T,n,n> operator/=(matrix<T,n,n> &x,matrix<T,n,n> y){
 	return x*=inverse(y);
 }
 
 template<typename T,int n>
-matrix<T,n,n> pow(matrix<T,n,n> m,int p){
+constexpr matrix<T,n,n> pow(matrix<T,n,n> m,int p){
 	matrix<T,n,n> x;
 	if(p>=0){
 		for(int i=0;i<p;i++) x*=m;
@@ -381,7 +412,7 @@ matrix<T,n,n> pow(matrix<T,n,n> m,int p){
 }
 
 template<typename T,int r,int c> 
-bool operator==(matrix<T,r,c> x,matrix<T,r,c> y){
+constexpr bool operator==(matrix<T,r,c> x,matrix<T,r,c> y){
 	for(int i=0;i<r;i++){ 
 		for(int j=0;j<c;j++){ 
 			if(x[i][j]!=y[i][j]) return false;
@@ -394,7 +425,7 @@ bool operator==(matrix<T,r,c> x,matrix<T,r,c> y){
 //for matrix first, scalar second
 #define SCALAR_ELEMENTWISE(op,mod_op,ref)			\
 template<typename T,int r,int c>					\
-matrix<T,r,c> operator op(matrix<T,r,c> ref a,T x){	\
+constexpr matrix<T,r,c> operator op(matrix<T,r,c> ref a,T x){	\
 	for(int i=0;i<r;i++){							\
 		for(int j=0;j<c;j++){						\
 			a[i][j] mod_op x;						\
@@ -416,7 +447,7 @@ SCALAR_ELEMENTWISE(/=,/=,&);
 //for scalar first, matrix second
 #define SCALAR_ELEMENTWISE(op)					\
 template<typename T,int r,int c>				\
-matrix<T,r,c> operator op(T x,matrix<T,r,c> a){	\
+constexpr matrix<T,r,c> operator op(T x,matrix<T,r,c> a){	\
 	for(int i=0;i<r;i++){						\
 		for(int j=0;j<c;j++){					\
 			a[i][j]=x op a[i][j];				\
@@ -434,7 +465,7 @@ SCALAR_ELEMENTWISE(/);
 
 //matrix-vector multiplication
 template<typename T,int r,int c>
-vec<T,r> operator*(matrix<T,r,c> m,vec<T,c> v){
+constexpr vec<T,r> operator*(matrix<T,r,c> m,vec<T,c> v){
 	vec<T,r> u;
 	for(int i=0;i<r;i++){
 		for(int j=0;j<c;j++){
@@ -445,7 +476,7 @@ vec<T,r> operator*(matrix<T,r,c> m,vec<T,c> v){
 }
 
 template<typename T,int r,int c>
-vec<T,c> operator*(vec<T,r> v,matrix<T,r,c> m){
+constexpr vec<T,c> operator*(vec<T,r> v,matrix<T,r,c> m){
 	vec<T,c> u;
 	for(int i=0;i<r;i++){
 		for(int j=0;j<c;j++){
@@ -456,13 +487,60 @@ vec<T,c> operator*(vec<T,r> v,matrix<T,r,c> m){
 }
 
 
+template<typename T,int n>
+constexpr matrix<T,n+1,n+1> translate(vec<T,n> v){
+	matrix<T,n+1,n+1> m;
+	for(int i=0;i<n;i++) m[i][n]=v[i];
+	return m;
+}
 
-//create nicer names for small vectors
-typedef vec<float,2> float2;
-typedef vec<float,3> float3;
-typedef vec<float,4> float4;
+template<typename T,int n>
+constexpr vec<T,n> mv(matrix<T,n+1,n+1> m,vec<T,n> v,bool tr){
+	vec<T,n+1> vn;
+	memcpy(&vn[0],&v[0],n*sizeof(T));
+	vn[n]=(T)tr;
+	auto vx=m*vn;
+	memcpy(&v[0],&vx[0],n*sizeof(T));
+	return v;
+}
 
 
+/*
+rotate<T,2>(theta,0b0000); //one way to rotate in 2D 
+
+rotate<T,3>(theta,0b0001); //about x-axis
+rotate<T,3>(theta,0b0010); //about y-axis
+rotate<T,3>(theta,0b0100); //about z-axis
+
+rotate<T,4>(theta,0b0011); //about xy-plane
+rotate<T,4>(theta,0b0101); //about xz-plane
+rotate<T,4>(theta,0b0110); //about yz-plane
+rotate<T,4>(theta,0b1001); //about xw-plane
+rotate<T,4>(theta,0b1010); //about yw-plane
+rotate<T,4>(theta,0b1100); //about zw-plane
+*/
+
+template<floating_point T,int n>
+constexpr matrix<T,n,n> rotate(T theta,unsigned int enc){
+	static_assert(n>=2 && n<32);
+	assert(popcount(enc)==n-2);
+	T s,c;
+	if constexpr(same_as<T,float>) s=sinf(theta),c=cosf(theta);
+	else s=sin(theta),c=cos(theta);
+	matrix<T,n,n> m;
+	int j=0,idxs[2]={0,1};
+	for(int i=0;i<n;i++){
+		if(!(enc&(1<<i))){
+			idxs[j]=i;
+			j++;
+		}
+	}
+	m[idxs[0]][idxs[0]]=+c;
+	m[idxs[1]][idxs[1]]=+c;
+	m[idxs[0]][idxs[1]]=-s;
+	m[idxs[1]][idxs[0]]=+s;
+	return m;
+}
 
 
 
